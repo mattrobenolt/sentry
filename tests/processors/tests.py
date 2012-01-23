@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-from mock import Mock
+import mock
 from sentry.processors import Processor
 from sentry.processors.mail import MailProcessor
 from sentry.conf import settings
@@ -48,33 +48,37 @@ class SentryProcessorsTest(TestCase):
 
 class MailProcessorTest(TestCase):
     def test_should_mail(self):
-        # no admins
-        p = MailProcessor(send_to=())
-        self.assertFalse(p.should_mail(group=Mock(), event=Mock()))
+        Mock = mock.Mock
+        with mock.patch('sentry.models.ProjectOption.objects.get_value') as get_value:
+            get_value.side_effect = lambda p, k, d: d
 
-        # not min level
-        p = MailProcessor(send_to=['foo@exampe.com'], min_level=2)
-        group = Mock()
-        group.level = 1
-        self.assertFalse(p.should_mail(group=group, event=Mock()))
+            # no admins
+            p = MailProcessor(send_to=())
+            self.assertFalse(p.should_mail(group=Mock(), event=Mock()))
 
-        # not in inclusion
-        p = MailProcessor(send_to=['foo@exampe.com'], min_level=None, include_loggers=['foo'])
-        group = Mock()
-        group.level = 5
-        group.logger = 'root'
-        self.assertFalse(p.should_mail(group=group, event=Mock()))
+            # not min level
+            p = MailProcessor(send_to=['foo@exampe.com'], min_level=2)
+            group = Mock()
+            group.level = 1
+            self.assertFalse(p.should_mail(group=group, event=Mock()))
 
-        # in exclusion
-        p = MailProcessor(send_to=['foo@exampe.com'], min_level=None, exclude_loggers=['root'])
-        group = Mock()
-        group.level = 5
-        group.logger = 'root'
-        self.assertFalse(p.should_mail(group=group, event=Mock()))
+            # not in inclusion
+            p = MailProcessor(send_to=['foo@exampe.com'], min_level=None, include_loggers=['foo'])
+            group = Mock()
+            group.level = 5
+            group.logger = 'root'
+            self.assertFalse(p.should_mail(group=group, event=Mock()))
 
-        # in exclusion
-        p = MailProcessor(send_to=['foo@exampe.com'], min_level=None)
-        group = Mock()
-        group.level = 5
-        group.logger = 'root'
-        self.assertTrue(p.should_mail(group=group, event=Mock()))
+            # in exclusion
+            p = MailProcessor(send_to=['foo@exampe.com'], min_level=None, exclude_loggers=['root'])
+            group = Mock()
+            group.level = 5
+            group.logger = 'root'
+            self.assertFalse(p.should_mail(group=group, event=Mock()))
+
+            # in exclusion
+            p = MailProcessor(send_to=['foo@exampe.com'], min_level=None)
+            group = Mock()
+            group.level = 5
+            group.logger = 'root'
+            self.assertTrue(p.should_mail(group=group, event=Mock()))
